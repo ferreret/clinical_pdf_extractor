@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-11-25
+
+### Added
+- Implemented visualization of extracted bounding boxes on the document images in the application UI.
+- Added debug logging for bounding box coordinates.
+
+### Changed
+- Updated vision extraction prompt to enforce normalized coordinates (0-1000) for better accuracy.
+
+### Fixed
+- Fixed Streamlit deprecation warning by replacing `use_column_width` with `use_container_width`.
+
 ## [0.3.0] - 2025-11-25
 
 ### Changed
