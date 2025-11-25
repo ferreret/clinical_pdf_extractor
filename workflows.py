@@ -1,14 +1,24 @@
-import os
 import json
-from typing import TypedDict, List, Optional, Dict, Any
-from langgraph.graph import StateGraph, END
+import os
+from typing import Any, Dict, List, Optional, TypedDict
+
+from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
+from langgraph.graph import END, StateGraph
 from mistralai import Mistral
-from dotenv import load_dotenv
+
 import utils
 
 load_dotenv()
+
+# --- Logging Colors ---
+BLUE = "\033[94m"
+CYAN = "\033[96m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+RED = "\033[91m"
+RESET = "\033[0m"
 
 # --- Configuration ---
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
@@ -32,7 +42,9 @@ class AgentState(TypedDict):
 def node_convert_pdf_to_images(state: AgentState):
     """Converts PDF bytes to images."""
     try:
+        print(f"{BLUE}[INFO] Converting PDF to images...{RESET}")
         images = utils.pdf_to_images(pdf_bytes=state["pdf_bytes"])
+        print(f"{GREEN}[SUCCESS] Converted PDF to {len(images)} images.{RESET}")
         return {
             "images": images,
             "current_page_index": 0,
@@ -40,6 +52,7 @@ def node_convert_pdf_to_images(state: AgentState):
             "errors": [],
         }
     except Exception as e:
+        print(f"{RED}[ERROR] PDF Conversion Error: {str(e)}{RESET}")
         return {"errors": [f"PDF Conversion Error: {str(e)}"]}
 
 
@@ -67,6 +80,8 @@ def node_mistral_ocr(state: AgentState):
         idx = state["current_page_index"]
         if idx >= len(state["images"]):
             return {}  # Should not happen if logic is correct
+
+        print(f"{CYAN}[STEP] Processing page {idx + 1} with Mistral OCR...{RESET}")
 
         image = state["images"][idx]
         base64_image = utils.get_image_data_url(image)
@@ -111,6 +126,7 @@ def node_mistral_ocr(state: AgentState):
         }  # Temporary key in state? Or pass to next node?
 
     except Exception as e:
+        print(f"{RED}[ERROR] Mistral OCR Error: {str(e)}{RESET}")
         return {"errors": state["errors"] + [f"Mistral OCR Error: {str(e)}"]}
 
 
@@ -127,6 +143,8 @@ def node_requesty_extraction_from_text(state: AgentState):
 
         # Mocking the text availability from previous node for now
         text = f"Sample clinical text for page {idx + 1}"
+
+        print(f"{CYAN}[STEP] Extracting data from text for page {idx + 1}...{RESET}")
 
         # Use model from state or default
         model = state.get("model_name", "gpt-4o-mini")
@@ -154,9 +172,11 @@ def node_requesty_extraction_from_text(state: AgentState):
         ]
 
         # Move to next page
+        print(f"{GREEN}[SUCCESS] Data extraction completed for page {idx + 1}.{RESET}")
         return {"extracted_data": new_data, "current_page_index": idx + 1}
 
     except Exception as e:
+        print(f"{RED}[ERROR] Extraction Error: {str(e)}{RESET}")
         return {
             "errors": state["errors"] + [f"Extraction Error: {str(e)}"],
             "current_page_index": state["current_page_index"] + 1,
@@ -174,6 +194,10 @@ def node_requesty_vision_extraction(state: AgentState):
 
         image = state["images"][idx]
         image_url = utils.get_image_data_url(image)
+
+        print(
+            f"{CYAN}[STEP] Extracting data from image for page {idx + 1} using Vision...{RESET}"
+        )
 
         # Use model from state or default
         model = state.get("model_name", "gpt-4o")
@@ -207,9 +231,13 @@ def node_requesty_vision_extraction(state: AgentState):
             {"page": idx + 1, "content": extracted, "source": "Requesty Vision"}
         ]
 
+        print(
+            f"{GREEN}[SUCCESS] Vision extraction completed for page {idx + 1}.{RESET}"
+        )
         return {"extracted_data": new_data, "current_page_index": idx + 1}
 
     except Exception as e:
+        print(f"{RED}[ERROR] Vision Extraction Error: {str(e)}{RESET}")
         return {
             "errors": state["errors"] + [f"Vision Extraction Error: {str(e)}"],
             "current_page_index": state["current_page_index"] + 1,

@@ -54,12 +54,13 @@ with st.sidebar:
     workflow_choice = st.radio(
         "Select Extraction Workflow",
         ("Mistral OCR + Requesty", "Requesty Vision (Direct)"),
+        index=1,
     )
 
     st.markdown("### Model Configuration")
     model_name = st.text_input(
         "Requesty Model Name",
-        value="gpt-4o-mini",
+        value="vertex/gemini-3-pro-preview",
         help="Enter the model ID supported by Requesty (e.g., gpt-4o, claude-3-5-sonnet-20240620)",
     )
 
