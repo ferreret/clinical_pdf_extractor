@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-11-25
+
+### Added
+- Execution logging in terminal with color coding for better visibility of workflow progress.
+
+### Changed
+- Default extraction workflow is now "Requesty Vision (Direct)".
+- Default model is now "vertex/gemini-3-pro-preview".
+
 ## [0.1.0] - 2025-11-25
 
 ### Added
