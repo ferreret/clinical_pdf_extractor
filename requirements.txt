@@ -1,0 +1,9 @@
+streamlit
+langgraph
+langchain
+langchain-openai
+mistralai
+python-dotenv
+pydantic
+pdf2image
+pillow
