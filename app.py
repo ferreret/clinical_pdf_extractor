@@ -1,7 +1,9 @@
 import streamlit as st
 import os
 import base64
+import base64
 from workflows import app_ocr, app_vision
+import utils
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -143,6 +145,38 @@ if uploaded_file is not None:
                                         st.caption(
                                             f"Bounding Box: {element['bounding_box']}"
                                         )
+
+                                        # Draw and display image with bounding box
+                                        try:
+                                            # Get the image for this page
+                                            # Note: result['images'] might not be returned by invoke if it's not in the output schema of the graph
+                                            # But since it's in the state, and we passed it in, it should be there if we return the state.
+                                            # Let's check if 'images' is in result.
+                                            # If not, we might need to rely on the initial 'images' list if we had it, but we don't have it here easily unless we keep it.
+                                            # Actually, invoke returns the final state.
+                                            page_idx = item["page"] - 1
+                                            if "images" in result and page_idx < len(
+                                                result["images"]
+                                            ):
+                                                image = result["images"][
+                                                    page_idx
+                                                ].copy()  # Copy to avoid modifying original
+                                                annotated_image = (
+                                                    utils.draw_bounding_box(
+                                                        image,
+                                                        element["bounding_box"],
+                                                        label=element["label"],
+                                                    )
+                                                )
+                                                st.image(
+                                                    annotated_image,
+                                                    caption=f"Visualized {element['label']}",
+                                                    use_container_width=True,
+                                                )
+                                        except Exception as img_e:
+                                            st.warning(
+                                                f"Could not visualize bounding box: {img_e}"
+                                            )
 
                 except Exception as e:
                     st.error(f"An error occurred during execution: {str(e)}")
