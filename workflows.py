@@ -39,6 +39,18 @@ class AgentState(TypedDict):
 # --- Node Definitions ---
 
 
+def load_prompt(filename: str) -> str:
+    """Loads a prompt from the prompts directory."""
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        prompt_path = os.path.join(current_dir, "prompts", filename)
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except Exception as e:
+        print(f"{RED}[ERROR] Failed to load prompt {filename}: {str(e)}{RESET}")
+        return ""
+
+
 def node_convert_pdf_to_images(state: AgentState):
     """Converts PDF bytes to images."""
     try:
@@ -157,9 +169,7 @@ def node_requesty_extraction_from_text(state: AgentState):
         )
 
         messages = [
-            SystemMessage(
-                content="You are an expert medical data extractor. Extract clinical analysis requests and results from the following text."
-            ),
+            SystemMessage(content=load_prompt("text_extraction.md")),
             HumanMessage(content=text),
         ]
 
@@ -210,9 +220,7 @@ def node_requesty_vision_extraction(state: AgentState):
         )
 
         messages = [
-            SystemMessage(
-                content="You are an expert medical data extractor. Extract clinical analysis requests and results from the following image."
-            ),
+            SystemMessage(content=load_prompt("vision_extraction.md")),
             HumanMessage(
                 content=[
                     {
