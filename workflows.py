@@ -10,6 +10,7 @@ from mistralai import Mistral
 
 import utils
 
+
 load_dotenv()
 
 # --- Logging Colors ---
@@ -168,13 +169,49 @@ def node_requesty_extraction_from_text(state: AgentState):
             temperature=0,
         )
 
+        # Define schema manually to avoid $defs which are not supported by some providers
+        schema = {
+            "name": "ExtractionResult",
+            "description": "Extraction result containing elements",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "elements": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "description": "The label of the extracted element, e.g., 'NombreApellidos'",
+                                },
+                                "value": {
+                                    "type": "string",
+                                    "description": "The extracted value",
+                                },
+                                "bounding_box": {
+                                    "type": "array",
+                                    "items": {"type": "integer"},
+                                    "description": "The bounding box [ymin, xmin, ymax, xmax] or null",
+                                },
+                            },
+                            "required": ["label", "value"],
+                        },
+                    }
+                },
+                "required": ["elements"],
+            },
+        }
+
+        structured_llm = llm.with_structured_output(schema)
+
         messages = [
             SystemMessage(content=load_prompt("text_extraction.md")),
             HumanMessage(content=text),
         ]
 
-        response = llm.invoke(messages)
-        extracted = response.content
+        response = structured_llm.invoke(messages)
+        extracted = response  # Response is already a dict when using schema dict
 
         # Append to extracted data
         new_data = state["extracted_data"] + [
@@ -219,6 +256,42 @@ def node_requesty_vision_extraction(state: AgentState):
             temperature=0,
         )
 
+        # Define schema manually to avoid $defs
+        schema = {
+            "name": "ExtractionResult",
+            "description": "Extraction result containing elements",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "elements": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "label": {
+                                    "type": "string",
+                                    "description": "The label of the extracted element, e.g., 'NombreApellidos'",
+                                },
+                                "value": {
+                                    "type": "string",
+                                    "description": "The extracted value",
+                                },
+                                "bounding_box": {
+                                    "type": "array",
+                                    "items": {"type": "integer"},
+                                    "description": "The bounding box [ymin, xmin, ymax, xmax] or null",
+                                },
+                            },
+                            "required": ["label", "value"],
+                        },
+                    }
+                },
+                "required": ["elements"],
+            },
+        }
+
+        structured_llm = llm.with_structured_output(schema)
+
         messages = [
             SystemMessage(content=load_prompt("vision_extraction.md")),
             HumanMessage(
@@ -232,8 +305,8 @@ def node_requesty_vision_extraction(state: AgentState):
             ),
         ]
 
-        response = llm.invoke(messages)
-        extracted = response.content
+        response = structured_llm.invoke(messages)
+        extracted = response  # Response is already a dict when using schema dict
 
         new_data = state["extracted_data"] + [
             {"page": idx + 1, "content": extracted, "source": "Requesty Vision"}

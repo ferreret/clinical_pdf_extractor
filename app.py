@@ -130,7 +130,19 @@ if uploaded_file is not None:
                         with st.expander(
                             f"Page {item['page']} - {item['source']}", expanded=True
                         ):
-                            st.markdown(item["content"])
+                            # item['content'] is now a dict (model_dump of ExtractionResult)
+                            elements = item["content"].get("elements", [])
+                            if not elements:
+                                st.warning("No elements found.")
+                            else:
+                                for element in elements:
+                                    st.markdown(
+                                        f"**{element['label']}**: {element['value']}"
+                                    )
+                                    if element.get("bounding_box"):
+                                        st.caption(
+                                            f"Bounding Box: {element['bounding_box']}"
+                                        )
 
                 except Exception as e:
                     st.error(f"An error occurred during execution: {str(e)}")

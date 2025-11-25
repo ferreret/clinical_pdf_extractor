@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-11-25
+
+### Changed
+- Updated extraction prompts to specifically extract only the patient's name and surname.
+- Implemented structured data extraction using JSON schema to support bounding boxes and strict output formatting.
+- Updated the application UI to display structured extraction results (Label, Value, Bounding Box).
+
 ## [0.2.1] - 2025-11-25
 
 ### Changed
