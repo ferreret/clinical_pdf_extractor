@@ -95,7 +95,6 @@ if uploaded_file is not None:
                 initial_state = {
                     "pdf_bytes": file_bytes,
                     "images": [],
-                    "current_page_index": 0,
                     "extracted_data": [],
                     "errors": [],
                     "model_name": model_name,
@@ -129,36 +128,44 @@ if uploaded_file is not None:
                                     )
                                     if element.get("bounding_box"):
                                         st.caption(
-                                            f"Bounding Box: {element['bounding_box']}"
+                                            f"Bounding Box: {element['bounding_box']} (Page {element.get('page_number', '?')})"
                                         )
 
                                         # Draw and display image with bounding box
                                         try:
-                                            # Get the image for this page
-                                            # Note: result['images'] might not be returned by invoke if it's not in the output schema of the graph
-                                            # But since it's in the state, and we passed it in, it should be there if we return the state.
-                                            # Let's check if 'images' is in result.
-                                            # If not, we might need to rely on the initial 'images' list if we had it, but we don't have it here easily unless we keep it.
-                                            # Actually, invoke returns the final state.
-                                            page_idx = item["page"] - 1
-                                            if "images" in result and page_idx < len(
-                                                result["images"]
-                                            ):
-                                                image = result["images"][
-                                                    page_idx
-                                                ].copy()  # Copy to avoid modifying original
-                                                annotated_image = (
-                                                    utils.draw_bounding_box(
-                                                        image,
-                                                        element["bounding_box"],
-                                                        label=element["label"],
+                                            # Get the image for this page based on page_number
+                                            page_num = element.get("page_number")
+                                            if page_num and "images" in result:
+                                                page_idx = page_num - 1
+                                                if (
+                                                    0
+                                                    <= page_idx
+                                                    < len(result["images"])
+                                                ):
+                                                    image = result["images"][
+                                                        page_idx
+                                                    ].copy()  # Copy to avoid modifying original
+                                                    annotated_image = (
+                                                        utils.draw_bounding_box(
+                                                            image,
+                                                            element["bounding_box"],
+                                                            label=element["label"],
+                                                        )
                                                     )
+                                                    st.image(
+                                                        annotated_image,
+                                                        caption=f"Visualized {element['label']} on Page {page_num}",
+                                                        width="stretch",
+                                                    )
+                                                else:
+                                                    st.warning(
+                                                        f"Page number {page_num} out of range."
+                                                    )
+                                            else:
+                                                st.warning(
+                                                    "Page number missing or images not available."
                                                 )
-                                                st.image(
-                                                    annotated_image,
-                                                    caption=f"Visualized {element['label']}",
-                                                    width="stretch",
-                                                )
+
                                         except Exception as img_e:
                                             st.warning(
                                                 f"Could not visualize bounding box: {img_e}"

@@ -1,6 +1,7 @@
 import json
 import os
 from typing import Any, Dict, List, Optional, TypedDict
+import base64
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -31,7 +32,6 @@ REQUESTY_BASE_URL = os.getenv("REQUESTY_BASE_URL", "https://router.requesty.ai/v
 class AgentState(TypedDict):
     pdf_bytes: bytes
     images: List[Any]  # PIL Images
-    current_page_index: int
     extracted_data: List[Dict[str, Any]]
     errors: List[str]
     model_name: str  # Added model name to state
@@ -71,18 +71,15 @@ def node_convert_pdf_to_images(state: AgentState):
 
 def node_requesty_vision_extraction(state: AgentState):
     """
-    Uses Requesty (OpenAI compatible) with a Vision model to extract data directly from images.
+    Uses Requesty (OpenAI compatible) with a Vision model to extract data directly from images (all at once).
     """
     try:
-        idx = state["current_page_index"]
-        if idx >= len(state["images"]):
+        if not state["images"]:
+            print(f"{YELLOW}[WARN] No images found in state.{RESET}")
             return {}
 
-        image = state["images"][idx]
-        image_url = utils.get_image_data_url(image)
-
         print(
-            f"{CYAN}[STEP] Extracting data from image for page {idx + 1} using Vision...{RESET}"
+            f"{CYAN}[STEP] Extracting data from {len(state['images'])} images using Vision...{RESET}"
         )
 
         # Use model from state or default
@@ -91,7 +88,7 @@ def node_requesty_vision_extraction(state: AgentState):
         llm = ChatOpenAI(
             api_key=REQUESTY_API_KEY,
             base_url=REQUESTY_BASE_URL,
-            model=model,  # Assuming Requesty has a vision capable model
+            model=model,
             temperature=0,
         )
 
@@ -115,13 +112,17 @@ def node_requesty_vision_extraction(state: AgentState):
                                     "type": "string",
                                     "description": "The extracted value",
                                 },
+                                "page_number": {
+                                    "type": "integer",
+                                    "description": "The page number where this element was found (1-indexed).",
+                                },
                                 "bounding_box": {
                                     "type": "array",
                                     "items": {"type": "integer"},
                                     "description": "The bounding box [ymin, xmin, ymax, xmax] or null",
                                 },
                             },
-                            "required": ["label", "value"],
+                            "required": ["label", "value", "page_number"],
                         },
                     }
                 },
@@ -131,43 +132,44 @@ def node_requesty_vision_extraction(state: AgentState):
 
         structured_llm = llm.with_structured_output(schema)
 
+        messages_content = [
+            {
+                "type": "text",
+                "text": "Extract the clinical data from this document. The document is provided as a series of images.",
+            }
+        ]
+
+        for image in state["images"]:
+            image_url = utils.get_image_data_url(image)
+            messages_content.append(
+                {"type": "image_url", "image_url": {"url": image_url}}
+            )
+
         messages = [
             SystemMessage(content=load_prompt("vision_extraction.md")),
-            HumanMessage(
-                content=[
-                    {
-                        "type": "text",
-                        "text": "Extract the clinical data from this document.",
-                    },
-                    {"type": "image_url", "image_url": {"url": image_url}},
-                ]
-            ),
+            HumanMessage(content=messages_content),
         ]
 
         response = structured_llm.invoke(messages)
         extracted = response  # Response is already a dict when using schema dict
 
-        new_data = state["extracted_data"] + [
-            {"page": idx + 1, "content": extracted, "source": "Requesty Vision"}
+        # We now have a single extraction result for the whole document
+        new_data = [
+            {
+                "page": "All",
+                "content": extracted,
+                "source": "Requesty Vision (All Images)",
+            }
         ]
 
-        print(
-            f"{GREEN}[SUCCESS] Vision extraction completed for page {idx + 1}.{RESET}"
-        )
-        return {"extracted_data": new_data, "current_page_index": idx + 1}
+        print(f"{GREEN}[SUCCESS] Vision extraction completed for all images.{RESET}")
+        return {"extracted_data": new_data}
 
     except Exception as e:
         print(f"{RED}[ERROR] Vision Extraction Error: {str(e)}{RESET}")
         return {
             "errors": state["errors"] + [f"Vision Extraction Error: {str(e)}"],
-            "current_page_index": state["current_page_index"] + 1,
         }
-
-
-def condition_check_done(state: AgentState):
-    if state["current_page_index"] < len(state["images"]):
-        return "continue"
-    return "end"
 
 
 # --- Workflow Construction ---
@@ -183,9 +185,7 @@ workflow_vision.add_node("vision_extract", node_requesty_vision_extraction)
 workflow_vision.set_entry_point("convert_pdf")
 workflow_vision.add_edge("convert_pdf", "vision_extract")
 
-workflow_vision.add_conditional_edges(
-    "vision_extract", condition_check_done, {"continue": "vision_extract", "end": END}
-)
+workflow_vision.add_edge("vision_extract", END)
 
 # Compile
 

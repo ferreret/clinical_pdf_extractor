@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-11-26
+
+### Changed
+- Updated extraction workflow to send all page images in a single request (instead of direct PDF) to ensure compatibility while providing full document context.
+- Updated `ExtractionResult` schema to include `page_number` for each extracted element.
+- Updated `app.py` to visualize bounding boxes using the returned `page_number`.
+
 ## [0.4.0] - 2025-11-26
 
 ### Changed
