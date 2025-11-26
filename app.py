@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import base64
 import base64
-from workflows import app_ocr, app_vision
+from workflows import app_vision
 import utils
 from dotenv import load_dotenv
 
@@ -53,12 +53,6 @@ st.markdown(
 with st.sidebar:
     st.title("⚙️ Configuration")
 
-    workflow_choice = st.radio(
-        "Select Extraction Workflow",
-        ("Mistral OCR + Requesty", "Requesty Vision (Direct)"),
-        index=1,
-    )
-
     st.markdown("### Model Configuration")
     model_name = st.text_input(
         "Requesty Model Name",
@@ -68,11 +62,6 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### API Status")
-
-    if os.getenv("MISTRAL_API_KEY"):
-        st.success("Mistral API Key detected")
-    else:
-        st.error("Mistral API Key missing")
 
     if os.getenv("REQUESTY_API_KEY"):
         st.success("Requesty API Key detected")
@@ -114,10 +103,7 @@ if uploaded_file is not None:
 
                 # Run Workflow
                 try:
-                    if workflow_choice == "Mistral OCR + Requesty":
-                        result = app_ocr.invoke(initial_state)
-                    else:
-                        result = app_vision.invoke(initial_state)
+                    result = app_vision.invoke(initial_state)
 
                     # Display Results
                     if result.get("errors"):
@@ -171,7 +157,7 @@ if uploaded_file is not None:
                                                 st.image(
                                                     annotated_image,
                                                     caption=f"Visualized {element['label']}",
-                                                    use_container_width=True,
+                                                    width="stretch",
                                                 )
                                         except Exception as img_e:
                                             st.warning(

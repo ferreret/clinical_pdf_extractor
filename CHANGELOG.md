@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-11-26
+
+### Changed
+- Removed "Mistral OCR + Requesty" workflow to simplify the application.
+- Removed workflow selection from the Streamlit sidebar; now defaults to "Requesty Vision (Direct)".
+- Updated `app.py` to fix `use_container_width` deprecation warning by using `width="stretch"`.
+
 ## [0.3.1] - 2025-11-25
 
 ### Added
