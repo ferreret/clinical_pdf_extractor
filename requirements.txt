@@ -8,3 +8,4 @@ pydantic
 pdf2image
 pillow
 streamlit-authenticator
+langsmith

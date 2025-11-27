@@ -127,63 +127,79 @@ if st.session_state["authentication_status"]:
                         if not data:
                             st.info("No data extracted.")
 
+                        # Group elements by page
+                        elements_by_page = {}
+                        all_elements = []
+
+                        # Flatten all elements from all extraction results (though we usually have just one "All" result now)
                         for item in data:
-                            with st.expander(
-                                f"Page {item['page']} - {item['source']}", expanded=True
-                            ):
-                                # item['content'] is now a dict (model_dump of ExtractionResult)
-                                elements = item["content"].get("elements", [])
-                                if not elements:
-                                    st.warning("No elements found.")
-                                else:
-                                    for element in elements:
+                            # item['content'] is a dict (ExtractionResult)
+                            page_elements = item["content"].get("elements", [])
+                            all_elements.extend(page_elements)
+
+                        if not all_elements:
+                            st.warning("No elements found.")
+                        else:
+                            # Group by page number
+                            for element in all_elements:
+                                page_num = element.get("page_number")
+                                if page_num:
+                                    if page_num not in elements_by_page:
+                                        elements_by_page[page_num] = []
+                                    elements_by_page[page_num].append(element)
+
+                            # Sort pages
+                            sorted_pages = sorted(elements_by_page.keys())
+
+                            for page_num in sorted_pages:
+                                page_elements = elements_by_page[page_num]
+
+                                with st.expander(
+                                    f"Page {page_num} - Extracted Data", expanded=True
+                                ):
+                                    # 1. Display Text Data
+                                    for element in page_elements:
                                         st.markdown(
                                             f"**{element['label']}**: {element['value']}"
                                         )
-                                        if element.get("bounding_box"):
-                                            st.caption(
-                                                f"Bounding Box: {element['bounding_box']} (Page {element.get('page_number', '?')})"
+
+                                    # 2. Draw Bounding Boxes
+                                    try:
+                                        if "images" in result:
+                                            page_idx = page_num - 1
+                                            if 0 <= page_idx < len(result["images"]):
+                                                # Create a copy of the image to draw on
+                                                image = result["images"][
+                                                    page_idx
+                                                ].copy()
+
+                                                # Draw ALL boxes for this page
+                                                for element in page_elements:
+                                                    if element.get("bounding_box"):
+                                                        image = utils.draw_bounding_box(
+                                                            image,
+                                                            element["bounding_box"],
+                                                            label=element["label"],
+                                                        )
+
+                                                st.image(
+                                                    image,
+                                                    caption=f"Visualized Page {page_num}",
+                                                    use_container_width=True,
+                                                )
+                                            else:
+                                                st.warning(
+                                                    f"Page number {page_num} out of range for images."
+                                                )
+                                        else:
+                                            st.warning(
+                                                "Images not available for visualization."
                                             )
 
-                                            # Draw and display image with bounding box
-                                            try:
-                                                # Get the image for this page based on page_number
-                                                page_num = element.get("page_number")
-                                                if page_num and "images" in result:
-                                                    page_idx = page_num - 1
-                                                    if (
-                                                        0
-                                                        <= page_idx
-                                                        < len(result["images"])
-                                                    ):
-                                                        image = result["images"][
-                                                            page_idx
-                                                        ].copy()  # Copy to avoid modifying original
-                                                        annotated_image = (
-                                                            utils.draw_bounding_box(
-                                                                image,
-                                                                element["bounding_box"],
-                                                                label=element["label"],
-                                                            )
-                                                        )
-                                                        st.image(
-                                                            annotated_image,
-                                                            caption=f"Visualized {element['label']} on Page {page_num}",
-                                                            width="stretch",
-                                                        )
-                                                    else:
-                                                        st.warning(
-                                                            f"Page number {page_num} out of range."
-                                                        )
-                                                else:
-                                                    st.warning(
-                                                        "Page number missing or images not available."
-                                                    )
-
-                                            except Exception as img_e:
-                                                st.warning(
-                                                    f"Could not visualize bounding box: {img_e}"
-                                                )
+                                    except Exception as img_e:
+                                        st.warning(
+                                            f"Could not visualize bounding boxes: {img_e}"
+                                        )
 
                     except Exception as e:
                         st.error(f"An error occurred during execution: {str(e)}")

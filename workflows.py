@@ -90,6 +90,8 @@ def node_requesty_vision_extraction(state: AgentState):
             base_url=REQUESTY_BASE_URL,
             model=model,
             temperature=0,
+            timeout=300,
+            max_retries=0,
         )
 
         # Define schema manually to avoid $defs
@@ -166,7 +168,12 @@ def node_requesty_vision_extraction(state: AgentState):
         return {"extracted_data": new_data}
 
     except Exception as e:
-        print(f"{RED}[ERROR] Vision Extraction Error: {str(e)}{RESET}")
+        import traceback
+
+        traceback.print_exc()
+        print(
+            f"{RED}[ERROR] Vision Extraction Error: {type(e).__name__}: {str(e)}{RESET}"
+        )
         return {
             "errors": state["errors"] + [f"Vision Extraction Error: {str(e)}"],
         }
