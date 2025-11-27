@@ -15,7 +15,7 @@ st.set_page_config(
     page_title="Clinical PDF Extractor",
     page_icon="Rx",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # --- Authentication ---
@@ -86,6 +86,22 @@ if st.session_state["authentication_status"]:
     st.title("📄 Clinical Analysis Extractor")
     st.markdown("Upload a clinical analysis PDF to extract structured data.")
 
+    # --- System Prompt Configuration ---
+    with st.expander("🛠️ System Prompt Configuration", expanded=False):
+        # Load default prompt
+        try:
+            with open("prompts/vision_extraction.md", "r", encoding="utf-8") as f:
+                default_prompt = f.read()
+        except Exception:
+            default_prompt = "You are an expert medical data extractor..."
+
+        system_prompt = st.text_area(
+            "Edit System Prompt",
+            value=default_prompt,
+            height=600,
+            help="Modify the instructions for the AI extractor.",
+        )
+
     uploaded_file = st.file_uploader("Choose a PDF file", type="pdf")
 
     if uploaded_file is not None:
@@ -112,6 +128,7 @@ if st.session_state["authentication_status"]:
                         "extracted_data": [],
                         "errors": [],
                         "model_name": model_name,
+                        "system_prompt": system_prompt,
                     }
 
                     # Run Workflow
@@ -185,7 +202,7 @@ if st.session_state["authentication_status"]:
                                                 st.image(
                                                     image,
                                                     caption=f"Visualized Page {page_num}",
-                                                    use_container_width=True,
+                                                    width="stretch",
                                                 )
                                             else:
                                                 st.warning(

@@ -35,6 +35,7 @@ class AgentState(TypedDict):
     extracted_data: List[Dict[str, Any]]
     errors: List[str]
     model_name: str  # Added model name to state
+    system_prompt: Optional[str]  # Added system prompt to state
 
 
 # --- Node Definitions ---
@@ -147,8 +148,13 @@ def node_requesty_vision_extraction(state: AgentState):
                 {"type": "image_url", "image_url": {"url": image_url}}
             )
 
+        # Use system prompt from state or load default
+        system_prompt_content = state.get("system_prompt")
+        if not system_prompt_content:
+            system_prompt_content = load_prompt("vision_extraction.md")
+
         messages = [
-            SystemMessage(content=load_prompt("vision_extraction.md")),
+            SystemMessage(content=system_prompt_content),
             HumanMessage(content=messages_content),
         ]
 

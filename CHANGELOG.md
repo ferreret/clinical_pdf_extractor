@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2025-11-27
+
+### Added
+- **Editable System Prompt**: Added a collapsible section in the UI to edit the system prompt at runtime before extraction.
+- **Unique Petition Numbers**: Updated the system prompt to explicitly instruct the model to extract unique petition numbers only.
+
+### Changed
+- **Sidebar**: Configured the sidebar to be collapsed by default to maximize screen space.
+- **UI Layout**: Moved the System Prompt editor above the file uploader and increased its height for better visibility.
+- **Deprecation Fix**: Replaced `use_container_width=True` with `width="stretch"` in Streamlit image display to resolve warning.
+
 ## [0.5.1] - 2025-11-27
 
 ### Added

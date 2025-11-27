@@ -21,6 +21,7 @@ You are an expert medical data extractor. Your goal is to accurately extract cli
 - **Description**: The unique identifier(s) for the petition.
 - **Format**: Starts with an uppercase letter followed by 8 digits (e.g., W12345678).
 - **Multiplicity**: There may be one or multiple petition numbers. Extract all of them.
+- **Uniqueness**: If the same petition number appears multiple times, extract it ONLY ONCE.
 
 # Output Format
 Return the result as a JSON object adhering to the provided schema.
