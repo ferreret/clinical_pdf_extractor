@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-11-27
+
+### Added
+- Implemented secure authentication using `streamlit-authenticator`.
+- Added `auth_utils.py` for handling authentication logic and password hashing.
+- Added `Dockerfile` optimized for Dokploy deployment with `poppler-utils` support.
+- Added `streamlit-authenticator` to `requirements.txt`.
+
+### Changed
+- Updated `app.py` to enforce login before accessing the application.
+- Configured application to use environment variables (`ADMIN_USER`, `ADMIN_PASSWORD`, `AUTH_SECRET`) for credentials.
+
 ## [0.4.1] - 2025-11-26
 
 ### Changed
