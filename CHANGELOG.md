@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2025-11-27
+
+### Added
+- Integrated **LangSmith** for tracing and monitoring LLM calls.
+- Added "Petition Number" field to vision extraction prompt.
+- Added `test_extraction.py` script for isolated testing.
+
+### Changed
+- Refactored `prompts/vision_extraction.md` to be more structured and extensible.
+- Increased LLM client timeout to 300s and disabled retries to prevent connection errors on large documents.
+- Refactored `app.py` to group extracted bounding boxes by page, displaying each page only once.
+- Replaced deprecated `use_column_width` with `use_container_width` in Streamlit image display.
+
 ## [0.5.0] - 2025-11-27
 
 ### Added
