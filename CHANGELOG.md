@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Date of Birth Extraction**: Updated `prompts/vision_extraction.md` to include extraction of the patient's date of birth (`FechaNacimiento`) normalized to `dd/mm/yyyy`.
+- **Sex Extraction**: Updated `prompts/vision_extraction.md` to include extraction of the patient's sex (`Sexo`) normalized to `H`/`M`/`U`.
+- **UI Visualization**: Implemented custom colors for bounding boxes: Red for patient data, Blue for petition numbers, Green for others.
+- **Prompt Engineering**: Added strict anti-hallucination instructions to `prompts/vision_extraction.md`.
+- **Patient ID Extraction**: Updated `prompts/vision_extraction.md` to include extraction of the patient's ID (`DocumentoIdentidad`) and visualized it in red.
+- **Patient Phone Extraction**: Updated `prompts/vision_extraction.md` to include extraction of the patient's phone number (`Telefono`) and visualized it in red.
+- **Doctor Name Extraction**: Updated `prompts/vision_extraction.md` to include extraction of the doctor's name (`NombreMedico`) and visualized it in purple.
+- **Collegiate Number Extraction**: Updated `prompts/vision_extraction.md` to include extraction of the collegiate number (`NumeroColegiado`) and visualized it in purple.
+
 ## [0.5.2] - 2025-11-27
 
 ### Added

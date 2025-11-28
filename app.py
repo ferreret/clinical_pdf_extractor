@@ -190,13 +190,31 @@ if st.session_state["authentication_status"]:
                                                     page_idx
                                                 ].copy()
 
+                                                # Define color mapping
+                                                COLOR_MAPPING = {
+                                                    "Paciente": "red",
+                                                    "FechaNacimiento": "red",
+                                                    "Sexo": "red",
+                                                    "DocumentoIdentidad": "red",
+                                                    "Telefono": "red",
+                                                    "NombreMedico": "purple",
+                                                    "NumeroColegiado": "purple",
+                                                    "NumeroPeticion": "blue",
+                                                }
+
                                                 # Draw ALL boxes for this page
                                                 for element in page_elements:
                                                     if element.get("bounding_box"):
+                                                        # Determine color
+                                                        box_color = COLOR_MAPPING.get(
+                                                            element["label"], "green"
+                                                        )
+
                                                         image = utils.draw_bounding_box(
                                                             image,
                                                             element["bounding_box"],
                                                             label=element["label"],
+                                                            color=box_color,
                                                         )
 
                                                 st.image(
