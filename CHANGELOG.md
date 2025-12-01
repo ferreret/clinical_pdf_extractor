@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2025-12-01
+
+### Added
+- **Structured Extraction**: Added extraction of `tests` (array) and `urine_details` (object) with fields for description, sample type, LOINC, and bounding boxes.
+- **Execution Timer**: Added a timer in the UI to display the elapsed time for the extraction process.
+- **Transparent Bounding Boxes**: Implemented transparent filled rectangles and semi-transparent borders for better visibility of underlying text.
+- **Custom Colors**: Set bounding box color for tests to **Yellow**.
+
+### Changed
+- **Client Refactor**: Replaced LangChain `ChatOpenAI` with pure `openai` library to resolve timeout issues and enable manual streaming.
+- **Validation**: Implemented Pydantic models (`ExtractionResult`, `Test`, `UrineDetails`) for strict validation of the final JSON response.
+- **Prompt Update**: Updated `prompts/vision_extraction.md` to enforce JSON mode and inject the schema dynamically.
+- **Bounding Box Logic**: Updated `utils.py` to automatically sort coordinates (min/max) and expand boxes by 2 pixels to prevent errors and improve visibility.
+
 ## [0.6.2] - 2025-12-01
 
 ### Changed

@@ -118,7 +118,17 @@ if st.session_state["authentication_status"]:
         with col2:
             st.subheader("Extracted Information")
 
-            if st.button("Start Extraction"):
+            col_btn, col_timer = st.columns([1, 2])
+            with col_btn:
+                start_btn = st.button("Start Extraction")
+
+            timer_placeholder = col_timer.empty()
+
+            if start_btn:
+                import time
+
+                start_time = time.time()
+
                 with st.spinner("Processing document..."):
                     # Prepare state
                     file_bytes = uploaded_file.read()
@@ -135,6 +145,12 @@ if st.session_state["authentication_status"]:
                     try:
                         result = app_vision.invoke(initial_state)
 
+                        end_time = time.time()
+                        elapsed_time = end_time - start_time
+                        timer_placeholder.success(
+                            f"Extraction completed in {elapsed_time:.2f} seconds"
+                        )
+
                         # Display Results
                         if result.get("errors"):
                             for error in result["errors"]:
@@ -146,16 +162,25 @@ if st.session_state["authentication_status"]:
 
                         # Group elements by page
                         elements_by_page = {}
+                        tests_by_page = {}
+                        urine_details_by_page = {}
+
                         all_elements = []
+                        all_tests = []
+                        all_urine_details = []
 
-                        # Flatten all elements from all extraction results (though we usually have just one "All" result now)
+                        # Flatten all elements from all extraction results
                         for item in data:
-                            # item['content'] is a dict (ExtractionResult)
-                            page_elements = item["content"].get("elements", [])
-                            all_elements.extend(page_elements)
+                            content = item["content"]
+                            all_elements.extend(content.get("elements", []))
+                            all_tests.extend(content.get("tests", []))
 
-                        if not all_elements:
-                            st.warning("No elements found.")
+                            urine = content.get("urine_details")
+                            if urine:
+                                all_urine_details.append(urine)
+
+                        if not all_elements and not all_tests:
+                            st.warning("No data found.")
                         else:
                             # Group by page number
                             for element in all_elements:
@@ -165,22 +190,53 @@ if st.session_state["authentication_status"]:
                                         elements_by_page[page_num] = []
                                     elements_by_page[page_num].append(element)
 
+                            for test in all_tests:
+                                page_num = test.get("page_number")
+                                if page_num:
+                                    if page_num not in tests_by_page:
+                                        tests_by_page[page_num] = []
+                                    tests_by_page[page_num].append(test)
+
+                            for urine in all_urine_details:
+                                page_num = urine.get("page_number")
+                                if page_num:
+                                    urine_details_by_page[page_num] = urine
+
                             # Sort pages
-                            sorted_pages = sorted(elements_by_page.keys())
+                            all_pages = (
+                                set(elements_by_page.keys())
+                                | set(tests_by_page.keys())
+                                | set(urine_details_by_page.keys())
+                            )
+                            sorted_pages = sorted(all_pages)
 
                             for page_num in sorted_pages:
-                                page_elements = elements_by_page[page_num]
+                                page_elements = elements_by_page.get(page_num, [])
+                                page_tests = tests_by_page.get(page_num, [])
+                                page_urine = urine_details_by_page.get(page_num)
 
                                 with st.expander(
                                     f"Page {page_num} - Extracted Data", expanded=True
                                 ):
-                                    # 1. Display Text Data
-                                    for element in page_elements:
-                                        st.markdown(
-                                            f"**{element['label']}**: {element['value']}"
-                                        )
+                                    # 1. Display General Elements
+                                    if page_elements:
+                                        st.markdown("### General Information")
+                                        for element in page_elements:
+                                            st.markdown(
+                                                f"**{element['label']}**: {element['value']}"
+                                            )
 
-                                    # 2. Draw Bounding Boxes
+                                    # 2. Display Tests
+                                    if page_tests:
+                                        st.markdown("### Clinical Tests")
+                                        st.table(page_tests)
+
+                                    # 3. Display Urine Details
+                                    if page_urine:
+                                        st.markdown("### Urine Details")
+                                        st.json(page_urine)
+
+                                    # 4. Draw Bounding Boxes
                                     try:
                                         if "images" in result:
                                             page_idx = page_num - 1
@@ -202,20 +258,40 @@ if st.session_state["authentication_status"]:
                                                     "NumeroPeticion": "blue",
                                                 }
 
-                                                # Draw ALL boxes for this page
+                                                # Draw General Elements
                                                 for element in page_elements:
                                                     if element.get("bounding_box"):
-                                                        # Determine color
                                                         box_color = COLOR_MAPPING.get(
                                                             element["label"], "green"
                                                         )
-
                                                         image = utils.draw_bounding_box(
                                                             image,
                                                             element["bounding_box"],
                                                             label=element["label"],
                                                             color=box_color,
                                                         )
+
+                                                # Draw Tests (Orange)
+                                                # Draw Test boxes
+                                                for test in page_tests:
+                                                    if test.get("bounding_box"):
+                                                        image = utils.draw_bounding_box(
+                                                            image,
+                                                            test["bounding_box"],
+                                                            label=test["description"],
+                                                            color="yellow",
+                                                        )
+
+                                                # Draw Urine Details (Yellow)
+                                                if page_urine and page_urine.get(
+                                                    "bounding_box"
+                                                ):
+                                                    image = utils.draw_bounding_box(
+                                                        image,
+                                                        page_urine["bounding_box"],
+                                                        label="Urine Info",
+                                                        color="#FFD700",  # Gold/Yellow
+                                                    )
 
                                                 st.image(
                                                     image,

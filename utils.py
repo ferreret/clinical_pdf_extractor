@@ -47,16 +47,24 @@ def draw_bounding_box(
     label: str = None,
     color: str = "red",
     width: int = 3,
+    alpha: int = 60,  # Transparency level (0-255)
 ) -> Image.Image:
     """
-    Draws a bounding box on the image.
+    Draws a bounding box on the image with a transparent fill.
     Assumes bbox is [ymin, xmin, ymax, xmax].
     If values are <= 1000, assumes they are normalized 0-1000 and scales them.
     """
     if not bbox or len(bbox) != 4:
         return image
 
-    draw = ImageDraw.Draw(image)
+    # Ensure image is RGBA for transparency
+    if image.mode != "RGBA":
+        image = image.convert("RGBA")
+
+    # Create a transparent overlay
+    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
     width_px, height_px = image.size
     ymin, xmin, ymax, xmax = bbox
     print(
@@ -70,12 +78,40 @@ def draw_bounding_box(
         ymax = int(ymax / 1000 * height_px)
         xmax = int(xmax / 1000 * width_px)
 
-    draw.rectangle([xmin, ymin, xmax, ymax], outline=color, width=width)
+    # Ensure coordinates are ordered correctly to avoid "x1 must be greater than or equal to x0"
+    left = min(xmin, xmax) - 2
+    right = max(xmin, xmax) + 2
+    top = min(ymin, ymax) - 2
+    bottom = max(ymin, ymax) + 2
 
+    # Color mapping for common names to RGB
+    COLORS = {
+        "red": (255, 0, 0),
+        "green": (0, 128, 0),
+        "blue": (0, 0, 255),
+        "yellow": (255, 255, 0),
+        "purple": (128, 0, 128),
+        "orange": (255, 165, 0),
+        "gold": (255, 215, 0),
+    }
+
+    rgb = COLORS.get(color.lower(), (255, 0, 0))  # Default to red
+    fill_color = rgb + (alpha,)
+    outline_color = rgb + (80,)  # More transparent outline
+
+    # Draw filled rectangle on overlay
+    draw.rectangle(
+        [left, top, right, bottom], fill=fill_color, outline=outline_color, width=width
+    )
+
+    # Composite overlay with original image
+    image = Image.alpha_composite(image, overlay)
+
+    # Draw label on top (solid)
     if label:
-        # Draw label background
-        text_bbox = draw.textbbox((xmin, ymin), label)
-        draw.rectangle(text_bbox, fill=color)
-        draw.text((xmin, ymin), label, fill="white")
+        draw_label = ImageDraw.Draw(image)
+        text_bbox = draw_label.textbbox((left, top), label)
+        draw_label.rectangle(text_bbox, fill=outline_color)
+        draw_label.text((left, top), label, fill="white")
 
     return image
