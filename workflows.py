@@ -5,6 +5,7 @@ import base64
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.callbacks import StreamingStdOutCallbackHandler
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.graph import END, StateGraph
@@ -91,8 +92,10 @@ def node_requesty_vision_extraction(state: AgentState):
             base_url=REQUESTY_BASE_URL,
             model=model,
             temperature=0,
-            timeout=300,
+            timeout=600,
             max_retries=0,
+            streaming=True,
+            callbacks=[StreamingStdOutCallbackHandler()],
         )
 
         # Define schema manually to avoid $defs
