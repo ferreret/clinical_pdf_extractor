@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import base64
 import base64
-from workflows import app_vision
+from workflows import app_vision, app_google_genai
 import utils
 from dotenv import load_dotenv
 
@@ -67,11 +67,23 @@ if st.session_state["authentication_status"]:
         authenticator.logout("Logout", "sidebar")
         st.markdown("---")
 
+        st.markdown("### Workflow Configuration")
+        workflow_provider = st.radio(
+            "Select Provider",
+            options=["Google GenAI (Default)", "Requesty (OpenAI Compatible)"],
+            index=0,
+            help="Choose the underlying AI provider for extraction.",
+        )
+
         st.markdown("### Model Configuration")
         model_name = st.text_input(
-            "Requesty Model Name",
-            value="google/gemini-3-pro-preview",
-            help="Enter the model ID supported by Requesty (e.g., gpt-4o, claude-3-5-sonnet-20240620)",
+            "Model Name",
+            value=(
+                "gemini-3-pro-preview"
+                if "Google" in workflow_provider
+                else "google/gemini-3-pro-preview"
+            ),
+            help="Enter the model ID (e.g., gemini-3-pro-preview, google/gemini-3-pro-preview)",
         )
 
         st.markdown("---")
@@ -143,7 +155,10 @@ if st.session_state["authentication_status"]:
 
                     # Run Workflow
                     try:
-                        result = app_vision.invoke(initial_state)
+                        if "Google" in workflow_provider:
+                            result = app_google_genai.invoke(initial_state)
+                        else:
+                            result = app_vision.invoke(initial_state)
 
                         end_time = time.time()
                         elapsed_time = end_time - start_time
@@ -172,6 +187,9 @@ if st.session_state["authentication_status"]:
                         # Flatten all elements from all extraction results
                         for item in data:
                             content = item["content"]
+                            if isinstance(content, str):
+                                st.error(f"Debug: Content is string: {content}")
+                                continue
                             all_elements.extend(content.get("elements", []))
                             all_tests.extend(content.get("tests", []))
 
