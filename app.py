@@ -70,7 +70,7 @@ if st.session_state["authentication_status"]:
         st.markdown("### Model Configuration")
         model_name = st.text_input(
             "Requesty Model Name",
-            value="vertex/gemini-3-pro-preview",
+            value="google/gemini-3-pro-preview",
             help="Enter the model ID supported by Requesty (e.g., gpt-4o, claude-3-5-sonnet-20240620)",
         )
 

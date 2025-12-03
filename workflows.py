@@ -180,7 +180,6 @@ def node_requesty_vision_extraction(state: AgentState):
             model=model,
             messages=messages,
             stream=True,
-            response_format={"type": "json_object"},
             temperature=0,
         )
 
