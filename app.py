@@ -175,6 +175,10 @@ if st.session_state["authentication_status"]:
                         if not data:
                             st.info("No data extracted.")
 
+                        st.write(
+                            f"Debug: Total images in result: {len(result.get('images', []))}"
+                        )
+
                         # Group elements by page
                         elements_by_page = {}
                         tests_by_page = {}
@@ -202,23 +206,26 @@ if st.session_state["authentication_status"]:
                         else:
                             # Group by page number
                             for element in all_elements:
-                                page_num = element.get("page_number")
-                                if page_num:
-                                    if page_num not in elements_by_page:
-                                        elements_by_page[page_num] = []
-                                    elements_by_page[page_num].append(element)
+                                if isinstance(element, dict):
+                                    page_num = element.get("page_number")
+                                    if page_num:
+                                        if page_num not in elements_by_page:
+                                            elements_by_page[page_num] = []
+                                        elements_by_page[page_num].append(element)
 
                             for test in all_tests:
-                                page_num = test.get("page_number")
-                                if page_num:
-                                    if page_num not in tests_by_page:
-                                        tests_by_page[page_num] = []
-                                    tests_by_page[page_num].append(test)
+                                if isinstance(test, dict):
+                                    page_num = test.get("page_number")
+                                    if page_num:
+                                        if page_num not in tests_by_page:
+                                            tests_by_page[page_num] = []
+                                        tests_by_page[page_num].append(test)
 
                             for urine in all_urine_details:
-                                page_num = urine.get("page_number")
-                                if page_num:
-                                    urine_details_by_page[page_num] = urine
+                                if isinstance(urine, dict):
+                                    page_num = urine.get("page_number")
+                                    if page_num:
+                                        urine_details_by_page[page_num] = urine
 
                             # Sort pages
                             all_pages = (
@@ -259,6 +266,9 @@ if st.session_state["authentication_status"]:
                                         if "images" in result:
                                             page_idx = page_num - 1
                                             if 0 <= page_idx < len(result["images"]):
+                                                st.write(
+                                                    f"Debug: Drawing on image {page_idx} for page {page_num}"
+                                                )
                                                 # Create a copy of the image to draw on
                                                 image = result["images"][
                                                     page_idx

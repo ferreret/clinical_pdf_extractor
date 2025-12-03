@@ -97,7 +97,7 @@ def node_requesty_vision_extraction(state: AgentState):
         client = openai.OpenAI(
             api_key=REQUESTY_API_KEY,
             base_url=REQUESTY_BASE_URL,
-            timeout=600.0,
+            timeout=1200.0,
             max_retries=3,
         )
 
@@ -124,9 +124,6 @@ def node_requesty_vision_extraction(state: AgentState):
             )
             page_number: int = Field(
                 description="The page number where this element was found (1-indexed)."
-            )
-            bounding_box: Optional[List[int]] = Field(
-                description="The bounding box [ymin, xmin, ymax, xmax] or null"
             )
 
         class UrineDetails(BaseModel):
@@ -166,85 +163,46 @@ def node_requesty_vision_extraction(state: AgentState):
                 {"type": "image_url", "image_url": {"url": image_url}}
             )
 
-        # --- Request 1: General Data & Urine Details ---
-        print(
-            f"{CYAN}[STEP] Request 1: Extracting General Data & Urine Details...{RESET}"
-        )
+        # --- Single Request: All Data ---
+        print(f"{CYAN}[STEP] Extracting All Data (General + Tests)...{RESET}")
 
-        system_prompt_general = load_prompt("vision_extraction_general.md")
+        system_prompt = load_prompt("vision_extraction.md")
         # Append schema instructions
         schema_json = ExtractionResult.model_json_schema()
-        system_prompt_general += f"\n\n# JSON Schema\nRespond strictly with a JSON object satisfying this schema:\n{json.dumps(schema_json, indent=2)}"
+        system_prompt += f"\n\n# JSON Schema\nRespond strictly with a JSON object satisfying this schema:\n{json.dumps(schema_json, indent=2)}"
 
-        messages_1 = [
-            {"role": "system", "content": system_prompt_general},
+        messages = [
+            {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": messages_content
                 + [
                     {
                         "type": "text",
-                        "text": "Extract ONLY the 'elements' (patient/doctor info) and 'urine_details'. Do NOT extract 'tests' in this step (return empty list for tests).",
+                        "text": "Extract all clinical data (elements, tests, urine_details) from the document.",
                     }
                 ],
             },
         ]
 
-        print(f"{CYAN}[INFO] Sending request 1 to Requesty (timeout=600s)...{RESET}")
-        stream_1 = client.chat.completions.create(
+        print(f"{CYAN}[INFO] Sending request to Requesty (timeout=1200s)...{RESET}")
+        stream = client.chat.completions.create(
             model=model,
-            messages=messages_1,
+            messages=messages,
             stream=True,
             temperature=0,
         )
 
-        full_response_1 = ""
-        print(f"{GREEN}[STREAM] Receiving response 1:{RESET}")
-        for chunk in stream_1:
+        full_response = ""
+        print(f"{GREEN}[STREAM] Receiving response:{RESET}")
+        for chunk in stream:
             content = chunk.choices[0].delta.content
             if content:
                 print(content, end="", flush=True)
-                full_response_1 += content
+                full_response += content
         print()
 
-        # --- Request 2: Clinical Tests ---
-        print(f"{CYAN}[STEP] Request 2: Extracting Clinical Tests...{RESET}")
-
-        system_prompt_tests = load_prompt("vision_extraction_tests.md")
-        system_prompt_tests += f"\n\n# JSON Schema\nRespond strictly with a JSON object satisfying this schema:\n{json.dumps(schema_json, indent=2)}"
-
-        messages_2 = [
-            {"role": "system", "content": system_prompt_tests},
-            {
-                "role": "user",
-                "content": messages_content
-                + [
-                    {
-                        "type": "text",
-                        "text": "Extract ONLY the 'tests'. Do NOT extract 'elements' or 'urine_details' in this step.",
-                    }
-                ],
-            },
-        ]
-
-        print(f"{CYAN}[INFO] Sending request 2 to Requesty (timeout=600s)...{RESET}")
-        stream_2 = client.chat.completions.create(
-            model=model,
-            messages=messages_2,
-            stream=True,
-            temperature=0,
-        )
-
-        full_response_2 = ""
-        print(f"{GREEN}[STREAM] Receiving response 2:{RESET}")
-        for chunk in stream_2:
-            content = chunk.choices[0].delta.content
-            if content:
-                print(content, end="", flush=True)
-                full_response_2 += content
-        print()
-
-        # Parse and Merge
+        # Parse
         try:
             # Helper to parse JSON from potential markdown
             def parse_json(text):
@@ -255,19 +213,11 @@ def node_requesty_vision_extraction(state: AgentState):
                     return ExtractionResult.model_validate_json(clean[start:end])
                 raise ValueError("Could not find JSON object")
 
-            data_1 = parse_json(full_response_1)
-            data_2 = parse_json(full_response_2)
-
-            # Merge
-            merged_result = ExtractionResult(
-                elements=data_1.elements,
-                urine_details=data_1.urine_details,
-                tests=data_2.tests,
-            )
-            extracted_dict = merged_result.model_dump()
+            extracted_result = parse_json(full_response)
+            extracted_dict = extracted_result.model_dump()
 
         except Exception as parse_error:
-            print(f"{RED}[ERROR] JSON Parsing/Merging failed: {parse_error}{RESET}")
+            print(f"{RED}[ERROR] JSON Parsing failed: {parse_error}{RESET}")
             # Attempt to recover partial JSON or return raw error
             return {
                 "errors": state["errors"] + [f"JSON Parsing Error: {str(parse_error)}"]
@@ -278,7 +228,7 @@ def node_requesty_vision_extraction(state: AgentState):
             {
                 "page": "All",
                 "content": extracted_dict,
-                "source": "Requesty Vision (All Images) - Split Request",
+                "source": "Requesty Vision (All Images) - Single Request",
             }
         ]
 
@@ -338,67 +288,56 @@ def node_google_genai_extraction(state: AgentState):
 
             from google.api_core import retry
 
-            # --- Request 1: General Data & Urine Details ---
+            # --- Single Request: All Data ---
+            print(f"{CYAN}[STEP] Extracting All Data (General + Tests)...{RESET}")
+
+            system_prompt = load_prompt("vision_extraction.md")
+            prompt = f"{system_prompt}\n\nPlease analyze the attached PDF and extract all clinical data (elements, tests, urine_details). Respond in JSON format."
+
+            response_stream = model.generate_content(
+                [prompt, uploaded_file],
+                stream=True,
+                request_options={
+                    "timeout": 600,
+                    "retry": retry.Retry(
+                        predicate=retry.if_transient_error, timeout=600
+                    ),
+                },
+            )
+
+            full_text = ""
+            input_tokens = 0
+            output_tokens = 0
+
+            print(f"{GREEN}[STREAM] Receiving response:{RESET}")
+            for chunk in response_stream:
+                try:
+                    text = chunk.text
+                    print(text, end="", flush=True)
+                    full_text += text
+                except Exception:
+                    pass
+
+                if chunk.usage_metadata:
+                    input_tokens = chunk.usage_metadata.prompt_token_count
+                    output_tokens = chunk.usage_metadata.candidates_token_count
+
+            print()
+            print(f"{GREEN}[SUCCESS] Response received.{RESET}")
+
+            # Calculate Cost (Gemini 1.5 Pro Pricing as proxy)
+            # Input: $1.25 / 1M tokens
+            # Output: $5.00 / 1M tokens
+            input_cost = (input_tokens / 1_000_000) * 1.25
+            output_cost = (output_tokens / 1_000_000) * 5.00
+            total_cost = input_cost + output_cost
+
             print(
-                f"{CYAN}[STEP] Request 1: Extracting General Data & Urine Details...{RESET}"
+                f"{CYAN}[COST] Input Tokens: {input_tokens}, Output Tokens: {output_tokens}{RESET}"
             )
+            print(f"{CYAN}[COST] Estimated Cost: ${total_cost:.6f}{RESET}")
 
-            system_prompt_general = load_prompt("vision_extraction_general.md")
-            prompt_1 = f"{system_prompt_general}\n\nPlease analyze the attached PDF and extract ONLY the 'elements' (patient/doctor info) and 'urine_details'. Do NOT extract 'tests' in this step (return empty list for tests). Respond in JSON format."
-
-            response_1_stream = model.generate_content(
-                [prompt_1, uploaded_file],
-                stream=True,
-                request_options={
-                    "timeout": 600,
-                    "retry": retry.Retry(
-                        predicate=retry.if_transient_error, timeout=600
-                    ),
-                },
-            )
-
-            full_text_1 = ""
-            print(f"{GREEN}[STREAM] Receiving response 1:{RESET}")
-            for chunk in response_1_stream:
-                try:
-                    text = chunk.text
-                    print(text, end="", flush=True)
-                    full_text_1 += text
-                except Exception:
-                    pass
-            print()
-            print(f"{GREEN}[SUCCESS] Response 1 received.{RESET}")
-
-            # --- Request 2: Clinical Tests ---
-            print(f"{CYAN}[STEP] Request 2: Extracting Clinical Tests...{RESET}")
-
-            system_prompt_tests = load_prompt("vision_extraction_tests.md")
-            prompt_2 = f"{system_prompt_tests}\n\nPlease analyze the attached PDF and extract ONLY the 'tests'. Do NOT extract 'elements' or 'urine_details' in this step. Respond in JSON format."
-
-            response_2_stream = model.generate_content(
-                [prompt_2, uploaded_file],
-                stream=True,
-                request_options={
-                    "timeout": 600,
-                    "retry": retry.Retry(
-                        predicate=retry.if_transient_error, timeout=600
-                    ),
-                },
-            )
-
-            full_text_2 = ""
-            print(f"{GREEN}[STREAM] Receiving response 2:{RESET}")
-            for chunk in response_2_stream:
-                try:
-                    text = chunk.text
-                    print(text, end="", flush=True)
-                    full_text_2 += text
-                except Exception:
-                    pass
-            print()
-            print(f"{GREEN}[SUCCESS] Response 2 received.{RESET}")
-
-            # 5. Parse and Merge JSON
+            # 5. Parse JSON
             def parse_json_response(text):
                 clean = text.replace("```json", "").replace("```", "").strip()
                 start = clean.find("{")
@@ -408,31 +347,23 @@ def node_google_genai_extraction(state: AgentState):
                 raise ValueError("Could not find JSON object")
 
             try:
-                data_1 = parse_json_response(full_text_1)
-                data_2 = parse_json_response(full_text_2)
-
-                # Merge
-                merged_data = {
-                    "elements": data_1.get("elements", []),
-                    "urine_details": data_1.get("urine_details"),
-                    "tests": data_2.get("tests", []),
-                }
+                extracted_data = parse_json_response(full_text)
 
             except Exception as parse_error:
-                print(f"{RED}[ERROR] JSON Parsing/Merging failed: {parse_error}{RESET}")
-                # Try to salvage what we can
-                merged_data = {"elements": [], "tests": [], "urine_details": None}
-                if "data_1" in locals():
-                    merged_data["elements"] = data_1.get("elements", [])
-                    merged_data["urine_details"] = data_1.get("urine_details")
-                if "data_2" in locals():
-                    merged_data["tests"] = data_2.get("tests", [])
+                print(f"{RED}[ERROR] JSON Parsing failed: {parse_error}{RESET}")
+                extracted_data = {"elements": [], "tests": [], "urine_details": None}
 
             new_data = [
                 {
                     "page": "All",
-                    "content": merged_data,
-                    "source": f"Google GenAI ({model_name}) - Split Request",
+                    "content": extracted_data,
+                    "source": f"Google GenAI ({model_name}) - Single Request",
+                    "usage": {
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                        "total_tokens": input_tokens + output_tokens,
+                        "estimated_cost_usd": total_cost,
+                    },
                 }
             ]
 
@@ -483,8 +414,11 @@ app_vision = workflow_vision.compile()
 
 # Workflow 3: Google GenAI Direct
 workflow_genai = StateGraph(AgentState)
+workflow_genai.add_node("convert_pdf", node_convert_pdf_to_images)
 workflow_genai.add_node("genai_extract", node_google_genai_extraction)
-workflow_genai.set_entry_point("genai_extract")
+
+workflow_genai.set_entry_point("convert_pdf")
+workflow_genai.add_edge("convert_pdf", "genai_extract")
 workflow_genai.add_edge("genai_extract", END)
 
 app_google_genai = workflow_genai.compile()

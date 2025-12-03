@@ -35,9 +35,15 @@ def verify_workflow():
                 print(f"- {error}")
         else:
             print("Extraction successful!")
+            images = result.get("images", [])
+            print(f"Images in state: {len(images)}")
             data = result.get("extracted_data", [])
             for item in data:
                 print(f"Source: {item['source']}")
+                if "usage" in item:
+                    usage = item["usage"]
+                    print(f"Usage: {usage}")
+                    print(f"Estimated Cost: ${usage.get('estimated_cost_usd', 0):.6f}")
                 print(f"Content: {item['content']}")
 
     except Exception as e:

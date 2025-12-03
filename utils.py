@@ -47,7 +47,7 @@ def draw_bounding_box(
     label: str = None,
     color: str = "red",
     width: int = 3,
-    alpha: int = 60,  # Transparency level (0-255)
+    alpha: int = 100,  # Transparency level (0-255)
 ) -> Image.Image:
     """
     Draws a bounding box on the image with a transparent fill.
